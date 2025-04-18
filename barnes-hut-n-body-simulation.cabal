@@ -15,7 +15,7 @@ common warnings
 executable barnes-hut-n-body-simulation
     import:           warnings
     main-is:          Main.hs
-    other-modules:    Types, Quadtree, Simulation
+    other-modules:    Types, Quadtree, Simulation, Render
     build-depends:    base ^>=4.18.2.1, gloss, linear
     hs-source-dirs:   app src
     default-language: GHC2021
