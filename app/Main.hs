@@ -1,18 +1,22 @@
 module Main where
 
-import Linear.V2 ( V2(..) )
-import Graphics.Gloss ( display, Display(InWindow), white, circle, pictures, translate, color, red, blue, Color, Picture )
-
-coloredCircle :: Color -> V2 Float -> Float -> Picture
-coloredCircle col pos radius = let V2 x y = pos in translate x y (color col (circle radius))
+import Graphics.Gloss (simulate, Display(..), black)
+import Types (Particle(..), BoundingBox(..))
+import Simulation (step)
+import Render (render)
+import Linear.V2 (V2(..))
 
 main :: IO ()
-main = do
-  let v1 = V2 10.0 20.0 :: V2 Float
-  let v2 = V2 30.0 40.0 :: V2 Float
-  let v3 = v1 + v2
-  putStrLn $ "Circle 1 at " ++ show v1
-  putStrLn $ "Circle 2 at " ++ show v2
-  putStrLn $ "Sum of vectors: " ++ show v3
-  let pic = pictures [ coloredCircle red v1 50, coloredCircle blue v2 500 ]
-  display (InWindow "Vector Circles" (400, 400) (10, 10)) white pic
+main = simulate display bgColor fps initialState renderFunc updateFunc
+  where
+    display = InWindow "Barnes-Hut Simulation" (800, 800) (10, 10)
+    bgColor = black
+    fps = 60
+    initialState = initialParticles
+    renderFunc = render scale
+    updateFunc _ _ = step boundingBox
+    scale = 40.0
+    boundingBox = BB { center = V2 0.0 0.0, halfWidth = 10.0 }
+    initialParticles = [particle1, particle2]
+    particle1 = Particle { position = V2 1.0 0.0, velocity = V2 0.0 0.5, mass = 1.0 }
+    particle2 = Particle { position = V2 (-1.0) 0.0, velocity = V2 0.0 (-0.5), mass = 5.0 }

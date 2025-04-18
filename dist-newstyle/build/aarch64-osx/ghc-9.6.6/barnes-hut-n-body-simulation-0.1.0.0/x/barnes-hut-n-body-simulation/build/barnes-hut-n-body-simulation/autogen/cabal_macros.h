@@ -40,6 +40,16 @@
   (major1) == 1 && (major2) <  23 || \
   (major1) == 1 && (major2) == 23 && (minor) <= 1)
 #endif /* MIN_VERSION_linear */
+/* package random-1.3.1 */
+#ifndef VERSION_random
+#define VERSION_random "1.3.1"
+#endif /* VERSION_random */
+#ifndef MIN_VERSION_random
+#define MIN_VERSION_random(major1,major2,minor) (\
+  (major1) <  1 || \
+  (major1) == 1 && (major2) <  3 || \
+  (major1) == 1 && (major2) == 3 && (minor) <= 1)
+#endif /* MIN_VERSION_random */
 
 /* tool cpphs-1.20.9 */
 #ifndef TOOL_VERSION_cpphs
