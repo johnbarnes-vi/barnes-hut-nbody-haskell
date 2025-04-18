@@ -1,6 +1,6 @@
 import Graphics.Gloss (simulate, Display(..), black, white, circleSolid, color, pictures, translate, Picture)
 import Linear.V2 (V2(..))
-import Linear.Vector ((*^), (^+^), (^-^), (^/), zero)
+import Linear.Vector ((*^), (^+^), (^-^), (^/), zero, sumV)
 import Linear.Metric (norm, dot)
 import Data.List (foldl')
 
@@ -106,7 +106,7 @@ computeForce p qt = case qt of
     let s = getSize bb
         d = norm (position p - cm)
     in if d > 0 && s / d < theta then approximateForce p m cm
-       else foldl' (^+^) zero [computeForce p subtree | subtree <- [nw, ne, sw, se]]
+       else sumV [computeForce p nw, computeForce p ne, computeForce p sw, computeForce p se]
 
 -- Build a quadtree from a list of particles given a root bounding box
 buildQuadtree :: BoundingBox -> [Particle] -> Quadtree
