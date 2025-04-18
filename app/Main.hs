@@ -101,7 +101,7 @@ approximateForce p m cm =
 computeForce :: Particle -> Quadtree -> Vector2D
 computeForce p qt = case qt of
   Empty _ -> V2 0 0
-  Leaf _ q -> if position p == position q then V2 0 0 else directForce p q
+  Leaf _ q -> directForce p q
   Node bb nw ne sw se m cm ->
     let s = getSize bb
         d = norm (position p - cm)
