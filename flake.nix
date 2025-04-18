@@ -21,6 +21,7 @@ outputs = { self, nixpkgs }:
             pkgs.haskell.lib.addBuildTools drv (with pkgs.haskellPackages;
                 [
                 haskell-language-server
+                cabal-install
                 ]);
         };
         });
