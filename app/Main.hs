@@ -77,15 +77,15 @@ g = 1.0
 theta :: Double
 theta = 0.5
 
--- Compute direct gravitational force between two particles
+-- Compute direct gravitational force between two particles with softening to avoid assyptotically approaching infinite force on close encounters
 directForce :: Particle -> Particle -> Vector2D
 directForce p1 p2 =
   let rVec = position p2 ^-^ position p1
       r2 = dot rVec rVec
-  in if r2 == 0 then zero else
-       let r = sqrt r2
-           forceMagnitude = g * mass p1 * mass p2 / r2
-       in (forceMagnitude / r) *^ rVec
+      epsilon = 0.01  -- Adjust this value based on simulation scale
+      softenedDenom = (r2 + epsilon * epsilon) ** 1.5
+      forceMagnitude = g * mass p1 * mass p2 / softenedDenom
+  in forceMagnitude *^ rVec
 
 -- Compute approximate force treating a node as a single mass at its center of mass
 approximateForce :: Particle -> Double -> Vector2D -> Vector2D
