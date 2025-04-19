@@ -157,5 +157,5 @@ main = simulate display bgColor fps initialState renderFunc updateFunc
     scale = 40.0
     boundingBox = BB { center = V2 0.0 0.0, halfWidth = 10.0 }
     initialParticles = [particle1, particle2]
-    particle1 = Particle { position = V2 1.0 0.0, velocity = V2 0.0 0.5, mass = 1.0 }
-    particle2 = Particle { position = V2 (-1.0) 0.0, velocity = V2 0.0 (-0.5), mass = 5.0 }
+    particle1 = Particle { position = V2 1.0 0.0, velocity = V2 0.0 0.0, mass = 1.0 }
+    particle2 = Particle { position = V2 (-1.0) 0.0, velocity = V2 0.0 0.0, mass = 1.0 }
