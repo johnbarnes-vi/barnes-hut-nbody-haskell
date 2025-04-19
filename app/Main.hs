@@ -82,8 +82,8 @@ forceOn particle otherMass otherPosition =
    in forceMagnitude *^ rVec
 
 -- Compute force on a particle using the Barnes-Hut approximation
-computeForceOn :: Particle -> Quadtree -> Vector2D
-computeForceOn particle quadTree = case quadTree of
+traverseForceOn :: Particle -> Quadtree -> Vector2D
+traverseForceOn particle quadTree = case quadTree of
   Empty _ -> V2 0 0
   Leaf _ otherParticle ->
     forceOn particle (mass otherParticle) (position otherParticle)
@@ -93,7 +93,7 @@ computeForceOn particle quadTree = case quadTree of
         theta = 0.5
      in if d > 0 && l / d < theta
           then forceOn particle aggregateMass aggregatePosition
-          else sumV [computeForceOn particle nw, computeForceOn particle ne, computeForceOn particle sw, computeForceOn particle se]
+          else sumV [traverseForceOn particle nw, traverseForceOn particle ne, traverseForceOn particle sw, traverseForceOn particle se]
 
 -- Build a quadtree from a list of particles given a root bounding box
 buildQuadtree :: BoundingBox -> [Particle] -> Quadtree
@@ -193,11 +193,15 @@ handleCollision particles (i, j) =
 -- Advance the simulation by one time step, including collision handling
 step :: BoundingBox -> [Particle] -> [Particle]
 step rootBB particles =
-  let qt = buildQuadtree rootBB particles
-      forces = map (`computeForceOn` qt) particles
-      particles' = zipWith updateParticle forces particles -- Update based on gravity
-      collidingPairs = findCollidingPairs particles' -- Detect collisions
-      particles'' = foldl handleCollision particles' collidingPairs -- Handle collisions
+  let quadTree = buildQuadtree rootBB particles
+      -- Calculate gravitational forces active on each particle via Barnes-Hut Algorithm
+      forces = map (`traverseForceOn` quadTree) particles
+      -- Update position and velocity for each particle using current active gravitational forces
+      particles' = zipWith updateParticle forces particles
+      -- Detect emergent collisions between the updated particle positions
+      collidingPairs = findCollidingPairs particles'
+      -- Update position and velocity for each particle using 2D elastic collision model
+      particles'' = foldl handleCollision particles' collidingPairs
    in particles''
 
 -- Convert Vector2D to (Float, Float) with scaling
