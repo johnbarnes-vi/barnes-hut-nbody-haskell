@@ -31,14 +31,12 @@ This implementation provides a simple, readable, and concise demonstration of th
 To run this simulation, you need to have Haskell installed along with the required libraries. Follow these steps:
 
 1. **Install Haskell**: Ensure you have GHC (Glasgow Haskell Compiler) installed. You can download it from Haskell.org.
-
 2. **Install Dependencies**: This project relies on the `gloss` and `linear` libraries. Install them using Cabal:
 
    ```bash
    cabal update
-   cabal install gloss linear
+   cabal install gloss linear random
    ```
-
 3. **Clone the Repository**:
 
    ```bash
@@ -52,10 +50,10 @@ To run the simulation, execute the following command in the project directory:
 
 ```bash
 ghc -o simulator Main.hs
-./simulator
+./simulator 1000
 ```
 
-This will launch a window displaying the simulation of two particles interacting gravitationally. You can modify the `initialParticles` list in `Main.hs` to simulate more bodies.
+This will launch a window displaying the simulation of 1000 particles interacting gravitationally. You can modify the command line argument to increase or decrease number of particles.
 
 ### Configuration
 
@@ -78,29 +76,24 @@ The entire simulation is contained within `Main.hs`, organized as follows:
   - `BoundingBox`: Defines a square region in space.
   - `Quadtree`: Data structure for spatial partitioning.
   - `Quadrant`: Enumerates the four quadrants of a bounding box.
-
 - **Quadtree Operations**:
 
   - `whichQuadrant`: Determines the quadrant a particle belongs to.
   - `splitBox`: Divides a bounding box into four sub-boxes.
   - `insert`: Inserts a particle into the quadtree.
   - `buildQuadtree`: Constructs a quadtree from a list of particles.
-
 - **Force Calculations**:
 
   - `directForce`: Computes the exact gravitational force between two particles.
   - `approximateForce`: Approximates the force from a group of particles.
   - `computeForce`: Uses the Barnes-Hut approximation to compute the force on a particle.
-
 - **Simulation Logic**:
 
   - `updateParticle`: Updates a particle's velocity and position based on the net force.
   - `step`: Advances the simulation by one time step.
-
 - **Rendering**:
 
   - `toScreenCoords`: Scales particle positions for display.
   - `particlePicture`: Creates a `Picture` for a single particle.
   - `render`: Renders all particles.
-
 - **Main Function**: Sets up and runs the simulation using `gloss`.
