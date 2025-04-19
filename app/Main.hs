@@ -97,12 +97,10 @@ approximateForce :: Particle -> Double -> Vector2D -> Vector2D
 approximateForce p m cm =
   let rVec = cm ^-^ position p
       r2 = dot rVec rVec
-   in if r2 == 0
-        then zero
-        else
-          let r = sqrt r2
-              forceMagnitude = g * mass p * m / r2
-           in (forceMagnitude / r) *^ rVec
+      epsilon = 0.01
+      softenedDenom = (r2 + epsilon * epsilon) ** 1.5
+      forceMagnitude = g * mass p * m / softenedDenom
+   in forceMagnitude *^ rVec
 
 -- Compute force on a particle using the Barnes-Hut approximation
 computeForce :: Particle -> Quadtree -> Vector2D
