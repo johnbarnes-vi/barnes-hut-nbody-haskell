@@ -2,7 +2,9 @@ import Graphics.Gloss (simulate, Display(..), black, white, circleSolid, color, 
 import Linear.V2 (V2(..))
 import Linear.Vector ((*^), (^+^), (^-^), (^/), zero, sumV)
 import Linear.Metric (norm, dot)
-import Data.List (foldl')
+import Data.List (foldl', unfoldr)
+import System.Environment (getArgs)
+import System.Random (StdGen, getStdGen, randomR)
 
 -- 2D vector type using Linear's V2
 type Vector2D = V2 Double
@@ -114,7 +116,7 @@ buildQuadtree rootBB = foldl' (flip insert) (Empty rootBB)
 
 -- Time step size (configurable constant for now)
 dt :: Double
-dt = 0.01
+dt = 0.001
 
 -- Update a single particle based on the net force and time step
 updateParticle :: Vector2D -> Particle -> Particle
@@ -138,24 +140,39 @@ toScreenCoords scale (V2 x y) = (scale * realToFrac x, scale * realToFrac y)
 
 -- Create a Picture for a single particle
 particlePicture :: Float -> Particle -> Picture
-particlePicture scale p = uncurry translate (toScreenCoords scale (position p)) $ color white $ circleSolid 2
+particlePicture scale p = uncurry translate (toScreenCoords scale (position p)) $ color white $ circleSolid 1
 
 -- Render the entire scene
 render :: Float -> [Particle] -> Picture
 render scale particles = pictures [particlePicture scale p | p <- particles]
 
--- Main function
+-- Generate a random particle with properties within specified ranges
+randomParticle :: StdGen -> (Particle, StdGen)
+randomParticle gen =
+  let (x, gen1) = randomR (-10, 10) gen    -- Position x: [-10, 10]
+      (y, gen2) = randomR (-10, 10) gen1   -- Position y: [-10, 10]
+      (vx, gen3) = randomR (0, 0) gen2    -- Velocity x: [-1, 1]
+      (vy, gen4) = randomR (0, 0) gen3    -- Velocity y: [-1, 1]
+      (m, gen5) = randomR (1, 1) gen4     -- Mass: [1, 10]
+  in (Particle { position = V2 x y, velocity = V2 vx vy, mass = m }, gen5)
+
+-- Generate a list of n random particles
+generateParticles :: Int -> StdGen -> [Particle]
+generateParticles n gen = take n $ unfoldr (Just . randomParticle) gen
+
+-- Main function to run the simulation
 main :: IO ()
-main = simulate display bgColor fps initialState renderFunc updateFunc
+main = do
+  args <- getArgs                      -- Get command-line arguments
+  let n = read (head args) :: Int      -- Parse the first argument as the number of particles
+  gen <- getStdGen                     -- Get the standard random number generator
+  let particles = generateParticles n gen  -- Generate n random particles
+  simulate display bgColor fps particles renderFunc updateFunc  -- Start the simulation
   where
-    display = InWindow "Barnes-Hut Simulation" (800, 800) (10, 10)
-    bgColor = black
-    fps = 60
-    initialState = initialParticles
-    renderFunc = render scale
-    updateFunc _ _ = step boundingBox
-    scale = 40.0
-    boundingBox = BB { center = V2 0.0 0.0, halfWidth = 10.0 }
-    initialParticles = [particle1, particle2]
-    particle1 = Particle { position = V2 1.0 0.0, velocity = V2 0.0 0.0, mass = 1.0 }
-    particle2 = Particle { position = V2 (-1.0) 0.0, velocity = V2 0.0 0.0, mass = 1.0 }
+    display = InWindow "Barnes-Hut Simulation" (800, 800) (10, 10)  -- Window settings
+    bgColor = black                    -- Background color
+    fps = 20                           -- Frames per second
+    renderFunc = render scale          -- Rendering function with scaling
+    updateFunc _ _ = step boundingBox  -- Update function with fixed bounding box
+    scale = 40.0                        -- Scaling factor for visualization
+    boundingBox = BB { center = V2 0.0 0.0, halfWidth = 10.0 }  -- Simulation bounding box
