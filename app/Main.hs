@@ -171,7 +171,7 @@ main = do
   where
     display = InWindow "Barnes-Hut Simulation" (800, 800) (10, 10)  -- Window settings
     bgColor = black                    -- Background color
-    fps = 20                           -- Frames per second
+    fps = 60                           -- Frames per second
     renderFunc = render scale          -- Rendering function with scaling
     updateFunc _ _ = step boundingBox  -- Update function with fixed bounding box
     scale = 40.0                        -- Scaling factor for visualization
