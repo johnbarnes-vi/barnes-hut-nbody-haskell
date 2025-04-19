@@ -224,8 +224,8 @@ render scale particles = pictures [particlePicture scale p | p <- particles]
 -- Generate a random particle with properties within specified ranges
 randomParticle :: StdGen -> (Particle, StdGen)
 randomParticle gen =
-  let (x, gen1) = randomR (-1, 1) gen    -- Position x: [-10, 10]
-      (y, gen2) = randomR (-1, 1) gen1   -- Position y: [-10, 10]
+  let (x, gen1) = randomR (-10, 10) gen    -- Position x: [-10, 10]
+      (y, gen2) = randomR (-10, 10) gen1   -- Position y: [-10, 10]
       (vx, gen3) = randomR (0, 0) gen2    -- Velocity x: [-1, 1]
       (vy, gen4) = randomR (0, 0) gen3    -- Velocity y: [-1, 1]
       (m, gen5) = randomR (1, 1) gen4     -- Mass: [1, 10]
