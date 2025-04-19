@@ -2,7 +2,7 @@ import Data.List (foldl', unfoldr)
 import Graphics.Gloss (Display (..), Picture, black, circleSolid, color, pictures, simulate, translate, white)
 import Linear.Metric (dot, norm)
 import Linear.V2 (V2 (..), perp)
-import Linear.Vector (sumV, zero, (*^), (^+^), (^-^), (^/))
+import Linear.Vector (sumV, zero, (*^), (^/))
 import System.Environment (getArgs)
 import System.Random (StdGen, getStdGen, randomR)
 
@@ -67,52 +67,33 @@ insert p (Node bb nw ne sw se m cm) =
         SW -> (nw, ne, insert p sw, se)
         SE -> (nw, ne, sw, insert p se)
       newM = m + mass p
-      newCm = if newM > 0 then (m *^ cm ^+^ mass p *^ position p) ^/ newM else zero
+      newCm = if newM > 0 then (m *^ cm + mass p *^ position p) ^/ newM else zero
    in Node bb newNw newNe newSw newSe newM newCm
 
--- Get the size (side length) of the bounding box
-getSize :: BoundingBox -> Double
-getSize (BB _ hw) = 2 * hw
-
--- Gravitational constant
-g :: Double
-g = 1.0
-
--- Accuracy parameter for Barnes-Hut approximation
-theta :: Double
-theta = 0.5
-
--- Compute direct gravitational force between two particles with softening
-directForce :: Particle -> Particle -> Vector2D
-directForce p1 p2 =
-  let rVec = position p2 ^-^ position p1
+-- Helper function to compute softened gravitational force
+forceOn :: Particle -> Double -> Vector2D -> Vector2D
+forceOn particle otherMass otherPosition =
+  let gravitationalConstant = 1.0
+      rVec = otherPosition - position particle
       r2 = dot rVec rVec
       epsilon = 0.01
       softenedDenom = (r2 + epsilon * epsilon) ** 1.5
-      forceMagnitude = g * mass p1 * mass p2 / softenedDenom
-   in forceMagnitude *^ rVec
-
--- Compute approximate force treating a node as a single mass at its center of mass
-approximateForce :: Particle -> Double -> Vector2D -> Vector2D
-approximateForce p m cm =
-  let rVec = cm ^-^ position p
-      r2 = dot rVec rVec
-      epsilon = 0.01
-      softenedDenom = (r2 + epsilon * epsilon) ** 1.5
-      forceMagnitude = g * mass p * m / softenedDenom
+      forceMagnitude = (gravitationalConstant * mass particle * otherMass) / softenedDenom
    in forceMagnitude *^ rVec
 
 -- Compute force on a particle using the Barnes-Hut approximation
-computeForce :: Particle -> Quadtree -> Vector2D
-computeForce p qt = case qt of
+computeForceOn :: Particle -> Quadtree -> Vector2D
+computeForceOn particle quadTree = case quadTree of
   Empty _ -> V2 0 0
-  Leaf _ q -> directForce p q
-  Node bb nw ne sw se m cm ->
-    let s = getSize bb
-        d = norm (position p - cm)
-     in if d > 0 && s / d < theta
-          then approximateForce p m cm
-          else sumV [computeForce p nw, computeForce p ne, computeForce p sw, computeForce p se]
+  Leaf _ otherParticle ->
+    forceOn particle (mass otherParticle) (position otherParticle)
+  Node (BB _ halfWidth) nw ne sw se aggregateMass aggregatePosition ->
+    let l = 2 * halfWidth
+        d = norm (position particle - aggregatePosition)
+        theta = 0.5
+     in if d > 0 && l / d < theta
+          then forceOn particle aggregateMass aggregatePosition
+          else sumV [computeForceOn particle nw, computeForceOn particle ne, computeForceOn particle sw, computeForceOn particle se]
 
 -- Build a quadtree from a list of particles given a root bounding box
 buildQuadtree :: BoundingBox -> [Particle] -> Quadtree
@@ -127,8 +108,8 @@ updateParticle :: Vector2D -> Particle -> Particle
 updateParticle force particle =
   let m = mass particle
       a = force ^/ m -- Acceleration: F / m
-      vNew = velocity particle ^+^ (dt *^ a) -- Update velocity: v + a * dt
-      pNew = position particle ^+^ (dt *^ vNew) -- Update position: p + v * dt
+      vNew = velocity particle + (dt *^ a) -- Update velocity: v + a * dt
+      pNew = position particle + (dt *^ vNew) -- Update position: p + v * dt
    in particle {velocity = vNew, position = pNew}
 
 -- Find all pairs of particles that are colliding (distance < sum of radii)
@@ -213,7 +194,7 @@ handleCollision particles (i, j) =
 step :: BoundingBox -> [Particle] -> [Particle]
 step rootBB particles =
   let qt = buildQuadtree rootBB particles
-      forces = map (`computeForce` qt) particles
+      forces = map (`computeForceOn` qt) particles
       particles' = zipWith updateParticle forces particles -- Update based on gravity
       collidingPairs = findCollidingPairs particles' -- Detect collisions
       particles'' = foldl handleCollision particles' collidingPairs -- Handle collisions
