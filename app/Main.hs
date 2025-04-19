@@ -132,8 +132,9 @@ updateParticle force particle =
 findCollidingPairs :: [Particle] -> [(Int, Int)]
 findCollidingPairs particles =
   [ (i,j) | i <- [0..n-1], j <- [i+1..n-1],
-            let p1 = particles !! i; p2 = particles !! j,
-            norm (position p1 - position p2) < radius p1 + radius p2 ]
+            let p1 = particles !! i
+                p2 = particles !! j
+            in norm (position p1 - position p2) < radius p1 + radius p2 ]
   where n = length particles
 
 -- Compute new velocities after an elastic collision based on the PDF's 7-step process
@@ -223,8 +224,8 @@ render scale particles = pictures [particlePicture scale p | p <- particles]
 -- Generate a random particle with properties within specified ranges
 randomParticle :: StdGen -> (Particle, StdGen)
 randomParticle gen =
-  let (x, gen1) = randomR (-5, 5) gen    -- Position x: [-10, 10]
-      (y, gen2) = randomR (-5, 5) gen1   -- Position y: [-10, 10]
+  let (x, gen1) = randomR (-1, 1) gen    -- Position x: [-10, 10]
+      (y, gen2) = randomR (-1, 1) gen1   -- Position y: [-10, 10]
       (vx, gen3) = randomR (0, 0) gen2    -- Velocity x: [-1, 1]
       (vy, gen4) = randomR (0, 0) gen3    -- Velocity y: [-1, 1]
       (m, gen5) = randomR (1, 1) gen4     -- Mass: [1, 10]
