@@ -240,15 +240,14 @@ generateParticles n gen = take n $ unfoldr (Just . randomParticle) gen
 main :: IO ()
 main = do
   args <- getArgs
-  let n = read (head args) :: Int
   gen <- getStdGen
-  let particles = generateParticles n gen
-  simulate display bgColor fps particles renderFunc updateFunc
-  where
-    display = InWindow "Barnes-Hut Simulation with Collisions" (800, 800) (10, 10)
-    bgColor = black
-    fps = 60
-    renderFunc = render scale
-    updateFunc _ _ = step boundingBox
-    scale = 40.0
-    boundingBox = BB { center = V2 0.0 0.0, halfWidth = 10.0 }
+  let n = read (head args) :: Int
+      particles = generateParticles n gen
+      display = InWindow "Barnes-Hut Simulation with Collisions" (800, 800) (10, 10)
+      bgColor = black
+      fps = 60
+      renderFunc = render scale
+      updateFunc _ _ = step boundingBox
+      scale = 40.0
+      boundingBox = BB { center = V2 0.0 0.0, halfWidth = 10.0 }
+   in simulate display bgColor fps particles renderFunc updateFunc
