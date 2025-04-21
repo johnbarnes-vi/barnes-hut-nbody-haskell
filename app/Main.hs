@@ -6,6 +6,9 @@ import Linear.Vector (sumV, zero, (*^), (^/))
 import System.Environment (getArgs)
 import System.Random (StdGen, getStdGen, randomR)
 import qualified Data.Map.Strict as Map
+import qualified Data.Vector as V
+import qualified Data.Vector.Mutable as MV
+import Control.Monad.ST ( runST )
 
 -- 2D vector type using Linear's V2
 type Vector2D = V2 Double
@@ -174,53 +177,51 @@ computeNewVelocities p1 p2 =
               v2' = v2n' *^ un + v2t' *^ ut
            in (v1', v2')
 
--- Handle a single collision by updating velocities and positions of the colliding pair
-handleCollision :: [Particle] -> (Int, Int) -> [Particle]
-handleCollision particles (i, j) =
-  let p1 = particles !! i
-      p2 = particles !! j
-      pos1 = position p1
+-- Helper function to compute new positions for colliding particles
+computeNewPositions :: Particle -> Particle -> (Vector2D, Vector2D)
+computeNewPositions p1 p2 =
+  let pos1 = position p1
       pos2 = position p2
       diff = pos2 - pos1
       d = norm diff
-      r1 = radius p1 -- 0.05
-      r2 = radius p2 -- 0.05
-      epsilon = 1e-10 -- Small threshold to handle near-zero distances
-      (new_pos1, new_pos2) =
-        if d < epsilon
-          then
-            let un = V2 1 0 -- Fixed direction (e.g., x-axis)
-                adjustment1 = r1 *^ un
-                adjustment2 = r2 *^ un
-             in (pos1 - adjustment1, pos2 + adjustment2)
-          else
-            let overlap = (r1 + r2) - d -- Positive when overlapping
-                un = diff ^/ d -- Unit vector from p1 to p2
-                adjustment = (overlap / 2) *^ un
-             in (pos1 - adjustment, pos2 + adjustment)
-      (v1', v2') = computeNewVelocities p1 p2
-   in [ if k == i
-          then p {position = new_pos1, velocity = v1'}
-          else
-            if k == j
-              then p {position = new_pos2, velocity = v2'}
-              else p
-        | (k, p) <- zip [0 ..] particles
-      ]
+      r1 = radius p1
+      r2 = radius p2
+      epsilon = 1e-10
+  in if d < epsilon
+       then
+         let un = V2 1 0
+             adjustment1 = r1 *^ un
+             adjustment2 = r2 *^ un
+         in (pos1 - adjustment1, pos2 + adjustment2)
+       else
+         let overlap = (r1 + r2) - d
+             un = diff ^/ d
+             adjustment = (overlap / 2) *^ un
+         in (pos1 - adjustment, pos2 + adjustment)
 
--- Advance the simulation by one time step, including collision handling
+-- Modified step function with efficient collision handling
 step :: BoundingBox -> [Particle] -> [Particle]
-step rootBB particles =
+step rootBB particles = runST $ do
   let quadTree = buildQuadtree rootBB particles
-      -- Calculate gravitational forces active on each particle via Barnes-Hut Algorithm
       forces = map (`traverseForceOn` quadTree) particles
-      -- Update position and velocity for each particle using current active gravitational forces
       particles' = zipWith updateParticle forces particles
-      -- Detect emergent collisions between the updated particle positions
       collidingPairs = findCollidingPairs particles'
-      -- Update position and velocity for each particle using 2D elastic collision model
-      particles'' = foldl handleCollision particles' collidingPairs
-   in particles''
+  
+  -- Convert list to mutable vector
+  v <- V.thaw (V.fromList particles')  -- O(N)
+  
+  -- Handle collisions on the mutable vector
+  mapM_ (\(i, j) -> do
+    p1 <- MV.read v i
+    p2 <- MV.read v j
+    let (pos1', pos2') = computeNewPositions p1 p2
+        (v1', v2') = computeNewVelocities p1 p2
+    MV.write v i (p1 {position = pos1', velocity = v1'})
+    MV.write v j (p2 {position = pos2', velocity = v2'})
+    ) collidingPairs  -- O(K)
+  
+  -- Convert mutable vector back to list
+  V.toList <$> V.freeze v  -- O(N)
 
 -- Convert Vector2D to (Float, Float) with scaling
 toScreenCoords :: Float -> Vector2D -> (Float, Float)
