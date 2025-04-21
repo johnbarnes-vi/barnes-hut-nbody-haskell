@@ -1,17 +1,20 @@
-import Data.List (foldl', unfoldr)
+import Data.List (foldl', mapAccumL)
 import Graphics.Gloss (Display (..), Picture, black, circleSolid, color, pictures, simulate, translate, white)
 import Linear.Metric (dot, norm)
 import Linear.V2 (V2 (..), perp)
 import Linear.Vector (sumV, zero, (*^), (^/))
 import System.Environment (getArgs)
 import System.Random (StdGen, getStdGen, randomR)
+import qualified Data.Map.Strict as Map
 
 -- 2D vector type using Linear's V2
 type Vector2D = V2 Double
 
 -- Particle with position, velocity, mass, and radius
 data Particle = Particle
-  { position :: Vector2D,
+  { 
+    index :: Int,
+    position :: Vector2D,
     velocity :: Vector2D,
     mass :: Double,
     radius :: Double
@@ -38,7 +41,7 @@ data Quadrant = NW | NE | SW | SE deriving (Show, Eq)
 
 -- Determine which quadrant a particle belongs to based on its position relative to the box center
 whichQuadrant :: BoundingBox -> Particle -> Quadrant
-whichQuadrant (BB (V2 cx cy) _) (Particle (V2 px py) _ _ _)
+whichQuadrant (BB (V2 cx cy) _) (Particle _ (V2 px py) _ _ _)
   | px < cx = if py > cy then NW else SW
   | py > cy = NE
   | otherwise = SE
@@ -115,11 +118,26 @@ updateParticle force particle =
 -- Find all pairs of particles that are colliding (distance < sum of radii)
 findCollidingPairs :: [Particle] -> [(Int, Int)]
 findCollidingPairs particles =
-  let n = length particles
-   in [ (i, j) | i <- [0 .. n - 1], j <- [i + 1 .. n - 1], let p1 = particles !! i
-                                                               p2 = particles !! j
-                                                            in norm (position p1 - position p2) < radius p1 + radius p2
-      ]
+  let cellSize = 0.1
+      toCell :: Vector2D -> (Int, Int)
+      toCell (V2 x y) = (floor (x / cellSize), floor (y / cellSize))
+      -- Build grid: Map (Int, Int) to [Particle]
+      grid = foldl' (\m p -> Map.insertWith (++) (toCell (position p)) [p] m)
+                    Map.empty particles
+      -- Get all nine neighboring cells (including current cell)
+      getNeighbors (ix, iy) = [(ix + dx, iy + dy) | dx <- [-1..1], dy <- [-1..1]]
+      -- For each particle, find colliding pairs with higher indices
+      pairs = concatMap (\p ->
+                let i = index p
+                    cell = toCell (position p)
+                    neighborCells = getNeighbors cell
+                    neighbors = concat [Map.findWithDefault [] c grid | c <- neighborCells]
+                 in [(i, j) | q <- neighbors,
+                              let j = index q,
+                              j > i,
+                              norm (position p - position q) < 0.1]
+               ) particles
+   in pairs
 
 -- Compute new velocities after an elastic collision based on the PDF's 7-step process
 computeNewVelocities :: Particle -> Particle -> (Vector2D, Vector2D)
@@ -217,19 +235,20 @@ render :: Float -> [Particle] -> Picture
 render scale particles = pictures [particlePicture scale p | p <- particles]
 
 -- Generate a random particle with properties within specified ranges
-randomParticle :: StdGen -> (Particle, StdGen)
-randomParticle gen =
-  let (x, gen1) = randomR (-10, 10) gen -- Position x: [-10, 10]
-      (y, gen2) = randomR (-10, 10) gen1 -- Position y: [-10, 10]
-      (vx, gen3) = randomR (0, 0) gen2 -- Velocity x: [-1, 1]
-      (vy, gen4) = randomR (0, 0) gen3 -- Velocity y: [-1, 1]
-      (m, gen5) = randomR (1, 1) gen4 -- Mass: [1, 10]
-      r = 0.05 -- Fixed radius
-   in (Particle {position = V2 x y, velocity = V2 vx vy, mass = m, radius = r}, gen5)
+randomParticle :: Int -> StdGen -> (Particle, StdGen)
+randomParticle idx gen =
+  let (x, gen1) = randomR (-10, 10) gen
+      (y, gen2) = randomR (-10, 10) gen1
+      (vx, gen3) = randomR (0, 0) gen2
+      (vy, gen4) = randomR (0, 0) gen3
+      (m, gen5) = randomR (1, 1) gen4
+      r = 0.05
+   in (Particle {index = idx, position = V2 x y, velocity = V2 vx vy, mass = m, radius = r}, gen5)
 
 -- Generate a list of n random particles
 generateParticles :: Int -> StdGen -> [Particle]
-generateParticles n gen = take n $ unfoldr (Just . randomParticle) gen
+generateParticles n gen =
+  snd $ mapAccumL (\g i -> let (p, g') = randomParticle i g in (g', p)) gen [0..n-1]
 
 -- Main function to run the simulation
 main :: IO ()
